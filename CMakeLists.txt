@@ -1,4 +1,4 @@
-project(NRF24NetworkingModule)
+project(msp430_delta_robot)
 cmake_minimum_required(VERSION 2.8)
 
 # Configuration
@@ -15,10 +15,8 @@ add_subdirectory(msp430lib)
 # NRF24NetworkingModule
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/msp430lib/include)
 add_executable(
-  NRF24NetworkingModule
     main.cpp
 )
 target_link_libraries(
-  NRF24NetworkingModule
     msp430lib
 )
