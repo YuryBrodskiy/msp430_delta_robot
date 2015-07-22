@@ -5,18 +5,18 @@ cmake_minimum_required(VERSION 2.8)
 # =============
 #
 set(CONF_FREQUENCY_IN_HZ "1000000UL" CACHE STRING "CPU frequency used")
-
+#set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/msp430.cmake)
 # Compiler Settings
 add_definitions("-DF_CPU=${CONF_FREQUENCY_IN_HZ}")
 
 # MSP430Lib
-add_subdirectory(msp430lib)
+#add_subdirectory(msp430lib)
 
 # NRF24NetworkingModule
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/msp430lib/include)
-add_executable(
+#include_directories(${CMAKE_CURRENT_SOURCE_DIR}/msp430lib/include)
+add_executable(main 
     main.cpp
 )
-target_link_libraries(
-    msp430lib
-)
+#target_link_libraries(
+#    msp430lib
+#)
