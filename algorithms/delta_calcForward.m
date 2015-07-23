@@ -62,8 +62,8 @@ function result = delta_calcForward(robot, th1, th2, th3)
     result.y0 = NaN;
   else
     result.z0 = -0.5*(b+sqrt(d))/a;
-    result.x0 = (a1*z0 + b1)/dnm;
-    result.y0 = (a2*z0 + b2)/dnm;
+    result.x0 = (a1*result.z0 + b1)/dnm;
+    result.y0 = (a2*result.z0 + b2)/dnm;
   end 
 end
 
