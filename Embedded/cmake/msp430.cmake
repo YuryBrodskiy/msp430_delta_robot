@@ -45,12 +45,19 @@ else()
   message(STATUS "MCU defined as '${MCU}'")
 endif()
 
-set(CMAKE_CXX_FLAGS "-std=c++11 -mmcu=${MCU} -Os -g -ffunction-sections -fdata-sections" CACHE STRING "C++ Flags")
-set(CMAKE_CXX_LINK_FLAGS "-Wl,-gc-sections" CACHE STRING "Linker Flags")
+#-c  -MMD
+set(CMAKE_CXX_FLAGS " -Wall -c -mmcu=${MCU} -Os -g -ffunction-sections -fdata-sections" CACHE STRING "C++ Flags")
+set(CMAKE_CXX_LINK_FLAGS "-0s, -Wl,-gc-sections" CACHE STRING "Linker Flags")
 
-set(CMAKE_C_FLAGS "-mmcu=${MCU} -Os -g -ffunction-sections -fdata-sections" CACHE STRING "C Flags")
+set(CMAKE_C_FLAGS " -Wall -c -mmcu=${MCU} -Os -g -ffunction-sections -fdata-sections" CACHE STRING "C Flags")
 set(CMAKE_C_LINK_FLAGS "-Wl,-gc-sections" CACHE STRING "Linker Flags")
 
 # Use GCC for linking executables to avoid linking to stdlibc++ _BUT_ get all the math libraries etc.
 set(CMAKE_CXX_LINK_EXECUTABLE
   "<CMAKE_C_COMPILER> <FLAGS> <CMAKE_CXX_LINK_FLAGS> <LINK_FLAGS> <OBJECTS> -o <TARGET> ${CMAKE_GNULD_IMAGE_VERSION} <LINK_LIBRARIES>")
+  
+ # Applications/Energia.app/Contents/Resources/Java/hardware/tools/msp430/bin/msp430-objcopy -O ihex -R .eeprom main main.hex
+# /Applications/Energia.app/Contents/Resources/Java/hardware/tools/msp430/mspdebug/mspdebug rf2500 --force-reset prog main.hex
+  
+  
+ 
