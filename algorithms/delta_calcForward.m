@@ -4,8 +4,8 @@ function result = delta_calcForward(robot, th1, th2, th3)
   %robot struct short rename and check for all fields
   e = robot.end_effector            
   f = robot.base    
-  re = robot.bicep_length
-  rf = robot.forearm_length
+  rf = robot.bicep_length
+  re = robot.forearm_length
   
   % trigonometric constants speed up compuation
   sqrt3 = sqrt(3.0);
