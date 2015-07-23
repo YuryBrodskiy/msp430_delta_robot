@@ -9,14 +9,10 @@ set(CONF_FREQUENCY_IN_HZ "1000000UL" CACHE STRING "CPU frequency used")
 # Compiler Settings
 add_definitions("-DF_CPU=${CONF_FREQUENCY_IN_HZ}")
 
-# MSP430Lib
-#add_subdirectory(msp430lib)
 
 # NRF24NetworkingModule
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/msp430lib/include)
 add_executable(main 
     main.cpp
 )
-#target_link_libraries(
-#    msp430lib
-#)
+
