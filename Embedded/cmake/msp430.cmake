@@ -24,6 +24,7 @@ find_program(MSP430_CXX msp430-g++)
 find_program(MSP430_OBJCOPY msp430-objcopy)
 find_program(MSP430_SIZE_TOOL msp430-size)
 find_program(MSP430_OBJDUMP msp430-objdump)
+find_program(MSPDEBUG mspdebug)
 
 # Compiler & Linker Settings
 include(CMakeForceCompiler)
@@ -45,7 +46,7 @@ else()
   message(STATUS "MCU defined as '${MCU}'")
 endif()
 
-#-c  -MMD
+
 set(CMAKE_CXX_FLAGS " -Wall -c -mmcu=${MCU} -Os -g -ffunction-sections -fdata-sections" CACHE STRING "C++ Flags")
 set(CMAKE_CXX_LINK_FLAGS "-0s, -Wl,-gc-sections" CACHE STRING "Linker Flags")
 
