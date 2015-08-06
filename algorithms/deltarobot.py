@@ -1,4 +1,4 @@
-__author__ = 'meink_000'
+__author__ = 'meinko'
 
 # Very quick n dirty method to see resolution. Using calculation method from
 # https://www.marginallyclever.com/other/samples/fk-ik-test.html
@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 e = 18.0  # end effector radius
 f = 40.0  # base radius
 re = 100.0  # parallelogram length
-rf = 100.0  # upper joint length
+rf = 75.0  # upper joint length
 bl = -140.0  # 'base level' (distance to actuator)
-sr = 0.3  # servo resolution in degrees.
+sr = 0.2  # servo resolution in degrees. (Hitec HS-A5076HB)
 
 
 def cartesian(arrays, out=None):
@@ -130,25 +130,47 @@ def resolution(effector_pos):
 
     loc = cartesian(([1., 0., -1.], [1., 0., -1.], [1., 0., -1.]))
 
+    sloc = np.sum(loc, axis=1)
+
+    loc = loc[np.abs(sloc) < 1, :]
+
     loc *= sr
 
     dpos = np.apply_along_axis(lambda da: forward_kinematics(theta + da), axis=1, arr=loc)
 
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    ax.set_aspect('equal')
 
     ax.scatter(dpos[:, 0], dpos[:, 1], dpos[:, 2], c='r', marker='o')
     ax.scatter(effector_pos[0], effector_pos[1], effector_pos[2], s=60, c='g', marker='o')
+
+    # Create cubic bounding box to simulate equal aspect ratio, http://stackoverflow.com/questions/
+    # 13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
+    max_range = np.array([dpos[:, 0].max() - dpos[:, 0].min(), dpos[:, 1].max() - dpos[:, 1].min(),
+                          dpos[:, 2].max() - dpos[:, 2].min()]).max()
+    Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (dpos[:, 0].max() + dpos[:, 0].min())
+    Yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() + 0.5 * (dpos[:, 1].max() + dpos[:, 1].min())
+    Zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() + 0.5 * (dpos[:, 2].max() + dpos[:, 2].min())
+    # Comment or uncomment following both lines to test the fake bounding box:
+    for xb, yb, zb in zip(Xb, Yb, Zb):
+        ax.plot([xb], [yb], [zb], 'w')
 
     ax.set_xlabel('X mm')
     ax.set_ylabel('Y mm')
     ax.set_zlabel('Z mm')
 
-    plt.show()
+    ax.set_aspect('equal')
 
-    return np.apply_along_axis(lambda dp: np.linalg.norm(dp - effector_pos), axis=1, arr=dpos)
+    plt.draw()
+
+    # return np.apply_along_axis(lambda dp: np.linalg.norm(dp - effector_pos), axis=1, arr=dpos)
+    return dpos[:, 2]
 
 
-a = resolution(np.array([0, 0, -140]))
-print(a)
+res = resolution(np.array([0, 0, -140])) + 140
+print(res)
+
+res = resolution(np.array([50, 50, -140])) + 140
+print(res)
+
+plt.show()
