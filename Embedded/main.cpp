@@ -13,11 +13,13 @@ int main(void)
 
 	    // VLO is running at 12 kHz
 	    TACCR0 = 240;//12000;    // the number of counts in the entire period
-	    TACCR1 = 12;        // the number of counts the output signal is set
+	    TACCR1 = 12;        // the number of counts the output signal is set on register 1 
+        TACCR2 = 12;        // the number of counts the output signal is set on register 2
 
 	    TACCTL1 |= OUTMOD_7;    // PWM output mode: 7 - PWM reset/set
-
-	    // select P1.6 function as TA0.1
+        TACCTL2 |= OUTMOD_7;    // PWM output mode: 7 - PWM reset/set
+	    
+        // select P1.6 function as TA0.1
 	    P1SEL |= BIT6;
 	   // P1SEL2 &= BIT6;
 
