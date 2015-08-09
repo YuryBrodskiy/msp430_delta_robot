@@ -246,12 +246,25 @@ int main(void)
 	//  IE1 |= WDTIE; // Enable WDT interrupt
 delay(10);
 
+
+	    // VLO is running at 12 kHz
+	    TACCR0 = 240;//12000;    // the number of counts in the entire period
+	    TACCR1 = 12;        // the number of counts the output signal is set on register 1 
+        TACCR2 = 12;        // the number of counts the output signal is set on register 2
+
+	    TACCTL1 |= OUTMOD_7;    // PWM output mode: 7 - PWM reset/set
+        TACCTL2 |= OUTMOD_7;    // PWM output mode: 7 - PWM reset/set
+	    
+        // select P1.6 function as TA0.1
+	    P1SEL |= BIT6;
+	   // P1SEL2 &= BIT6;
 	  BCSCTL1 |= DIVA_3;				// ACLK/8
 	  BCSCTL3 |= XCAP_3;				//12.5pF cap- setting for 32.768Hz crystal
 	  CCTL0 = CCIE;                                 // CCR0 interrupt enabled
 	  TACTL = TASSEL_1 + MC_1 + ID_3;       // SMCLK/8, upmode
 	  CCR0 = 10; //512/10// 100000;                         // 12.5 Hz
 	 _BIS_SR(LPM3_bits + GIE);			// Enter LPM3 w/ interrupt
+
 
 
 
