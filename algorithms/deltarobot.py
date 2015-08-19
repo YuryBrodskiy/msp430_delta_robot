@@ -2,19 +2,18 @@ __author__ = 'meinko'
 
 # Very quick n dirty method to see resolution. Using calculation method from
 # https://www.marginallyclever.com/other/samples/fk-ik-test.html
-# TODO: fix, see matlab code.
 
 import math
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
-e = 18.0  # end effector radius
-f = 40.0  # base radius
-re = 100.0  # parallelogram length
-rf = 75.0  # upper joint length
-bl = -140.0  # 'base level' (distance to actuator)
-sr = 0.2  # servo resolution in degrees. (Hitec HS-A5076HB)
+e = 15.0  # end effector radius
+f = 45.0  # base radius
+re = 90.0  # parallelogram length
+rf = 45.0  # upper joint length
+bl = -100.0  # 'base level' (distance to actuator)
+sr = 0.5  # servo resolution in degrees. (Hitec HS-A5076HB)
 
 
 def cartesian(arrays, out=None):
@@ -166,11 +165,24 @@ def resolution(effector_pos):
     # return np.apply_along_axis(lambda dp: np.linalg.norm(dp - effector_pos), axis=1, arr=dpos)
     return dpos[:, 2]
 
+s = 30
+b = -90
 
-res = resolution(np.array([0, 0, -140])) + 140
+
+res = resolution(np.array([0, 0, b])) - b
 print(res)
 
-res = resolution(np.array([50, 50, -140])) + 140
+res = resolution(np.array([s, s, b])) - b
 print(res)
+
+res = resolution(np.array([s, -s, b])) - b
+print(res)
+
+res = resolution(np.array([-s, -s, b])) - b
+print(res)
+
+res = resolution(np.array([-s, s, b])) - b
+print(res)
+
 
 plt.show()
