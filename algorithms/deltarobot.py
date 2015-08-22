@@ -9,9 +9,9 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
 e = 15.0  # end effector radius
-f = 45.0  # base radius
-re = 90.0  # parallelogram length
-rf = 45.0  # upper joint length
+f = 40.0  # base radius
+re = 120.0  # parallelogram length
+rf = 30.0  # upper joint length
 bl = -100.0  # 'base level' (distance to actuator)
 sr = 0.5  # servo resolution in degrees. (Hitec HS-A5076HB)
 
@@ -165,7 +165,7 @@ def resolution(effector_pos):
     # return np.apply_along_axis(lambda dp: np.linalg.norm(dp - effector_pos), axis=1, arr=dpos)
     return dpos[:, 2]
 
-s = 30
+s = 70
 b = -90
 
 
