@@ -35,8 +35,9 @@ namespace delta
   }
   void PWMServo::writeTime(int usec) 				//! Write pulse width in microseconds
   {
+    if (m_set_usec!=usec)
+      analogWrite(m_pin,m_set_usec);
     m_set_usec=usec;
-    analogWrite(m_pin,m_set_usec);
   }
   float PWMServo::readAngle()                        //! returns current pulse width as an angle between 0 and 180 degrees
   {
