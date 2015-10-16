@@ -29,27 +29,32 @@ public:
   ServoMessage(Stream* const input)
   {
     mInput = input;
-    mInput->setTimeout(10);
+    mInput->setTimeout(100);
     num[0]=0;
     num[1]=0;
     num[2]=0;
   }
   void read()
   {
+    Scalar val[3];
+    bool goodMessage = true;
     if(mInput->find("["))
     {
-        skipWhites(mInput);
-        num[0]=mInput->parseFloat();
-        mInput->find(",");
+        val[0]=mInput->parseFloat();
+        //goodMessage&=mInput->find(",");
 
-        skipWhites(mInput);
-        num[1]=mInput->parseFloat();
-        mInput->find(",");
+        val[1]=mInput->parseFloat();
+        //goodMessage&=mInput->find(",");
 
-        skipWhites(mInput);
-        num[2]=mInput->parseFloat();
-        skipWhites(mInput);
-        mInput->find("]");
+        val[2]=mInput->parseFloat();
+
+        //goodMessage&=mInput->find("]");
+        if(goodMessage)
+          {
+            num[0]=val[0];
+            num[1]=val[1];
+            num[2]=val[2];
+          }
     }
   }
   void println()
@@ -58,7 +63,6 @@ public:
     mInput->print(",");mInput->print(num[1]);
     mInput->print(",");mInput->print(num[2]);
     mInput->print("]");mInput->print("\n");
-    mInput->flush();
     mInput->clearWriteError();
   }
   Scalar num[3];
@@ -84,7 +88,7 @@ int main(void)
   Serial.println("End of setup");
 
   while(1){
-      if(millis() % 2000 == 0 )
+      if(millis() % 20 == 0 )
         {
 
           messageSource.read();
