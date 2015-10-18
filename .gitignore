@@ -26,3 +26,10 @@
 *.exe
 *.out
 *.app
+.project
+Embedded/.settings/org.eclipse.cdt.core.prefs
+Embedded/.settings/org.eclipse.cdt.ui.prefs
+Embedded/bin
+Embedded/build
+Host/bin
+Host/build

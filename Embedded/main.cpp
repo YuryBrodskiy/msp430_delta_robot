@@ -29,7 +29,7 @@ public:
   ServoMessage(Stream* const input)
   {
     mInput = input;
-    mInput->setTimeout(100);
+    mInput->setTimeout(10);
     num[0]=0;
     num[1]=0;
     num[2]=0;
@@ -58,6 +58,8 @@ public:
     mInput->print(",");mInput->print(num[1]);
     mInput->print(",");mInput->print(num[2]);
     mInput->print("]");mInput->print("\n");
+    mInput->flush();
+    mInput->clearWriteError();
   }
   Scalar num[3];
 private:
@@ -70,8 +72,9 @@ int main(void)
   init(); // setup the clock
   Serial.begin(9600);
   Serial.println("Start of setup");
-  delta::PWMServo servo1(P2_6, 0, pi, low_val, high_val);
-  TA0CCTL0 = CCIE; // force interupt
+  delta::PWMServo servo1(P2_2, 0, pi, low_val, high_val);
+  delta::PWMServo servo2(P2_5, 0, pi, low_val, high_val);
+  delta::PWMServo servo3(P2_6, 0, pi, low_val, high_val);
   ServoMessage messageSource(&Serial);
   pinMode(RED_LED, OUTPUT); // Indicate start of setup
   pinMode(GREEN_LED, OUTPUT); // Indicate start of setup
@@ -81,14 +84,15 @@ int main(void)
   Serial.println("End of setup");
 
   while(1){
-      if(val!=val_old)
+      if(millis() % 2000 == 0 )
         {
 
           messageSource.read();
-          servo1.writeTime(val);
-          val_old=val;
+          servo1.writeAngle(messageSource.num[0]);
+          servo2.writeAngle(messageSource.num[1]);
+          servo3.writeAngle(messageSource.num[2]);
           messageSource.println();
-          digitalWrite(RED_LED, !digitalRead(RED_LED));
+         digitalWrite(RED_LED, !digitalRead(RED_LED));
        }
 
 
@@ -97,22 +101,22 @@ int main(void)
 }
 int divider = 0;
 
-#ifndef TIMERA0_VECTOR
-#define TIMERA0_VECTOR TIMER0_A0_VECTOR
-#endif /* TIMER0_A0_VECTOR */
+//#ifndef TIMERA0_VECTOR
+//#define TIMERA0_VECTOR TIMER0_A0_VECTOR
+//#endif /* TIMER0_A0_VECTOR */
 
-#pragma vector=TIMER0_A0_VECTOR
-__interrupt void
-Timer_A_int(void)
-{
-  if(divider == 20)
-    {
-      ///digitalWrite(GREEN_LED, !digitalRead(GREEN_LED));
-      val = max((val+50) % high_val,low_val);
-      divider =0;
-    }
-  divider++;
-}
+//#pragma vector=WDT_VECTOR
+//__interrupt  void
+//Timer_A_int(void)
+//{
+//  if(divider == 20)
+//    {
+//      ///digitalWrite(GREEN_LED, !digitalRead(GREEN_LED));
+//      val = max((val+50) % high_val,low_val);
+//      divider =0;
+//    }
+//  divider++;
+//}
 
 // build in PWM below
 //int main(void)
