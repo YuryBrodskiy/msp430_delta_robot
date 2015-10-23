@@ -38,18 +38,28 @@ def inverse(rb, rp, lu, ll, x):
     g = t2 + 2 * (-x[0] * b + x[1] * c)
     theta3 = minangle(solve_ipk(e, f, g))
 
-    return np.array([theta1, theta2, theta3])
+    return np.array([-theta1, -theta2, -theta3])
+
+
+def p2c(th, r):
+    return np.array([r*np.cos(th), r*np.sin(th)])
 
 
 class Robot:
-    def __init__(self, rb, rp, lu, ll):
+
+    # todo: mathematical configuration check
+    # todo: hinge check if angles are physically allowed
+    def __init__(self, rb, rp, lu, ll, pw=None):
         self.base_radius = rb
         self.platform_radius = rp
         self.upper_arm_length = lu
         self.lower_arm_length = ll
+        self.pgram_width = pw
 
         self._xyz = np.array([0, 0, -0.9])
         self._theta = inverse(rb, rp, lu, ll, self.xyz)  # todo, forward kinematics first
+
+        self.arm_attach = np.array([-1/2, 1/6, 5/6]) * np.pi
 
     @property
     def xyz(self):
@@ -75,110 +85,120 @@ class Robot:
         # todo: forward kinematics
         self._theta = theta
 
+    def act_coord(self, n):
+        return np.append(p2c(self.arm_attach[n], self.base_radius), [0])
 
-def visualize(robot):
+    def shoulder_hinge_coord(self, n):
+        ludx, ludy = p2c(self._theta[n], self.upper_arm_length)
+        return np.append(p2c(self.arm_attach[n], self.base_radius + ludx), [ludy])
+
+    def platform_hinge_coord(self, n):
+        return np.append(p2c(self.arm_attach[n], self.platform_radius) + self._xyz[0:2], self._xyz[2])
+
+    def upper_arm_coord(self, n):
+        base_coord = self.act_coord(n)
+        hinge_coord = self.shoulder_hinge_coord(n)
+
+        return np.vstack((base_coord, hinge_coord))
+
+    def lower_arm_coord(self, n):
+        shoulder_hinge_coord = self.shoulder_hinge_coord(n)
+        platform_hinge_coord = self.platform_hinge_coord(n)
+
+        return np.vstack((shoulder_hinge_coord, platform_hinge_coord))
+
+
+def visualize(robot, setp):
+
+    n_frames = setpoint.shape[0]
+
     fig = plt.figure("config")
+
+    # color:   blue       green      fuchsia
+    colors = ('#2e4172', '#709c34', '#7d2a68')
 
     ax = fig.add_subplot(111, projection='3d')
     ax.auto_scale_xyz([-0.75, 0.75], [-0.75, 0.75], [-1.5, 0])
     ax.set_aspect("equal")
 
-    def init():
-        pass
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
 
-    def animate():
-        pass
+    circle_points = np.linspace(0, 2*np.pi, num=100, endpoint=True)
+    base_radius = robot.base_radius
+
+    base_coord = np.column_stack((base_radius*np.cos(circle_points),
+                                  base_radius*np.sin(circle_points),
+                                  np.full(100, 0)))
+
+    platform_radius = robot.platform_radius
+
+    base, = ax.plot([], [], [])
+    platform, = ax.plot([], [], [])
+    upper_arm = sum([ax.plot([], [], [], '-', c=c) for c in colors], [])
+    lower_arm = sum([ax.plot([], [], [], '-', c=c) for c in colors], [])
+
+    def init():
+
+        base.set_data([], [])
+        base.set_3d_properties([])
+
+        platform.set_data([], [])
+        platform.set_3d_properties([])
+
+        for i in range(len(upper_arm)):
+            upper_arm[i].set_data([], [])
+            upper_arm[i].set_3d_properties([])
+
+        for i in range(len(lower_arm)):
+            lower_arm[i].set_data([], [])
+            lower_arm[i].set_3d_properties([])
+
+        return [base] + [platform] + upper_arm + lower_arm
+
+    def animate(i):
+
+        robot.xyz = setp[i, ]
+
+        base.set_data(base_coord[:, 0], base_coord[:, 1])
+        base.set_3d_properties(base_coord[:, 2])
+
+        platform_coord = np.column_stack((platform_radius*np.cos(circle_points),
+                                          platform_radius*np.sin(circle_points),
+                                          np.full(100, setp[i, 2])))
+
+        platform.set_data(platform_coord[:, 0] + setp[i, 0], platform_coord[:, 1] + setp[i, 1])
+        platform.set_3d_properties(platform_coord[:, 2])
+
+        for i in range(len(upper_arm)):
+            upper_arm_coord = robot.upper_arm_coord(i)
+            upper_arm[i].set_data(upper_arm_coord[:, 0], upper_arm_coord[:, 1])
+            upper_arm[i].set_3d_properties(upper_arm_coord[:, 2])
+
+        for i in range(len(lower_arm)):
+            lower_arm_coord = robot.lower_arm_coord(i)
+            lower_arm[i].set_data(lower_arm_coord[:, 0], lower_arm_coord[:, 1])
+            lower_arm[i].set_3d_properties(lower_arm_coord[:, 2])
+
+        return [base] + [platform] + upper_arm + lower_arm
+
+    if n_frames == 1:
+        animate(0)
+    else:
+        ani = animation.FuncAnimation(fig, animate, frames=n_frames, blit=True, init_func=init, interval=100, repeat=True)
+
+    plt.show()
 
 
 rbot = Robot(0.164, 0.022, 0.524, 1.244)
-rbot.xyz = (0, 0, -1)
-print(rbot.theta)
-#
-# def plot_config(rb, rp, lu, ll):
-#     fig = plt.figure("config")
-#
-#     ax = fig.add_subplot(111, projection='3d')
-#     ax.set_xlabel('X m')
-#     ax.set_ylabel('Y m')
-#     ax.set_zlabel('Z m')
-#     ax.auto_scale_xyz([-0.75, 0.75], [-0.75, 0.75], [-1.5, 0])
-#     ax.set_aspect("equal")
-#
-#     config = inverse_kinematics(rb, rp, lu, ll)
-#
-#     c_point = np.linspace(0, 2 * np.pi, num=100, endpoint=True)
-#
-#     base_points = np.array([rb * np.cos(c_point), rb * np.sin(c_point)])
-#
-#     base_config = np.array([-1 / 2, 1 / 6, -7 / 6]) * np.pi
-#
-#     def platform(x, y, z):
-#         cx_platform = rp * np.cos(c_point) + x
-#         cy_platform = rp * np.sin(c_point) + y
-#         cz_platform = np.empty(100)
-#         cz_platform.fill(z)
-#
-#         return np.array([cx_platform, cy_platform, cz_platform])
-#
-#     def arms(theta, x, y, z, config):
-#         ludx, ludy = p2c(theta, lu)
-#
-#         lup = np.vstack((np.append(p2c(config, rb), [0]),
-#                          np.append(p2c(config, rb + ludx), [ludy])))
-#
-#         llp = np.vstack((np.append(p2c(config, rp) + np.array([x, y]), z),
-#                          np.append(p2c(config, rb + ludx), [ludy])))
-#
-#         return lup, llp
-#
-#     def draw_bot(i, xa, ya, za):
-#         x = xa[i]
-#         y = ya[i]
-#         z = za[i]
-#         theta = -config(x, y, z)
-#
-#         draw_parts = []
-#
-#         base_plot, = ax.plot(base_points[0, :], base_points[1, :])
-#         draw_parts.append(base_plot)
-#
-#         platform_points = platform(x, y, z)
-#         platform_plot, = ax.plot(platform_points[0, :], platform_points[1, :], platform_points[2, :])
-#         draw_parts.append(platform_plot)
-#
-#         for i in range(len(base_config)):
-#             lup, llp = arms(theta[i], x, y, z, base_config[i])
-#             upper_arm_plot, = ax.plot(lup[:, 0], lup[:, 1], lup[:, 2])
-#             lower_arm_plot, = ax.plot(llp[:, 0], llp[:, 1], llp[:, 2])
-#             draw_parts.append(upper_arm_plot)
-#             draw_parts.append(lower_arm_plot)
-#
-#         ax.auto_scale_xyz([-0.75, 0.75], [-0.75, 0.75], [-1.5, 0])
-#         ax.set_aspect("equal")
-#
-#         draw_parts = tuple(draw_parts)
-#
-#         return draw_parts
-#
-#     def p2c(th, r):
-#         return np.array([np.cos(th), np.sin(th)]) * r
-#
-#     def plot(x, y, z):
-#         if len(x) == 1:
-#             draw_bot(1, x, y, z)
-#         else:
-#             anim = animation.FuncAnimation(fig, draw_bot, fargs=(x, y, z), frames=100, interval=20, blit=True)
-#         plt.show()
-#
-#     return plot
-#
-#
-# rbot = plot_config(0.164, 0.022, 0.524, 1.244)
-#
-# move_points = np.linspace(0, 2 * np.pi, num=100, endpoint=True)
-#
-# x_move = 0.3 * np.cos(move_points)
-# y_move = 0.3 * np.sin(move_points)
-# z_move = 0.1 * np.sin(2*move_points) - 1
-#
-# rbot(x_move, y_move, z_move)
+
+steps = np.linspace(0, 2*np.pi, num=50, endpoint=False)
+
+setpoint = np.column_stack((0.2*np.cos(steps),
+                            0.2*np.sin(steps),
+                            0.1*np.sin(2*steps)-1.1))
+
+visualize(rbot, setpoint)
+
+
