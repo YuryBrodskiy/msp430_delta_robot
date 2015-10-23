@@ -21,7 +21,7 @@ def inverse(rb, rp, lu, ll, x):
     b = rp * 3 / sq3 - rb * sq3 / 2.0
     c = rp - rb / 2
 
-    t1 = np.dot(x, x)
+    t1 = x[0] ** 2 + x[1] ** 2 + x[2] ** 2
 
     e = 2 * lu * (x[1] + a)
     f = 2 * x[2] * lu
@@ -42,11 +42,10 @@ def inverse(rb, rp, lu, ll, x):
 
 
 def p2c(th, r):
-    return np.array([r*np.cos(th), r*np.sin(th)])
+    return np.array([r * np.cos(th), r * np.sin(th)])
 
 
 class Robot:
-
     # todo: mathematical configuration check
     # todo: hinge check if angles are physically allowed
     def __init__(self, rb, rp, lu, ll, pw=None):
@@ -59,7 +58,7 @@ class Robot:
         self._xyz = np.array([0, 0, -0.9])
         self._theta = inverse(rb, rp, lu, ll, self.xyz)  # todo, forward kinematics first
 
-        self.arm_attach = np.array([-1/2, 1/6, 5/6]) * np.pi
+        self.arm_attach = np.array([-1 / 2, 1 / 6, 5 / 6]) * np.pi
 
     @property
     def xyz(self):
@@ -107,15 +106,32 @@ class Robot:
 
         return np.vstack((shoulder_hinge_coord, platform_hinge_coord))
 
+    def prlgram_arm_coord(self, n):
+        v1 = p2c(self.arm_attach[n]+np.pi/2, self.pgram_width/2)
+        v2 = p2c(self.arm_attach[n]-np.pi/2, self.pgram_width/2)
+
+        lower_arm_coord = self.lower_arm_coord(n)
+
+        prlgram1 = np.copy(lower_arm_coord)
+        prlgram2 = np.copy(lower_arm_coord)
+
+        prlgram1[:, 0:2] += np.vstack((v1, v1))
+        prlgram2[:, 0:2] += np.vstack((v2, v2))
+
+        return np.vstack((prlgram1, prlgram2))
+
 
 def visualize(robot, setp):
-
-    n_frames = setpoint.shape[0]
+    if setp.ndim == 1:
+        n_frames = 1
+        setp = np.array([setp])
+    else:
+        n_frames = setp.shape[0]
 
     fig = plt.figure("config")
 
     # color:   blue       green      fuchsia
-    colors = ('#2e4172', '#709c34', '#7d2a68')
+    colors = ('b', 'g', 'r')
 
     ax = fig.add_subplot(111, projection='3d')
     ax.auto_scale_xyz([-0.75, 0.75], [-0.75, 0.75], [-1.5, 0])
@@ -125,19 +141,20 @@ def visualize(robot, setp):
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
 
-    circle_points = np.linspace(0, 2*np.pi, num=100, endpoint=True)
+    circle_points = np.linspace(0, 2 * np.pi, num=100, endpoint=True)
     base_radius = robot.base_radius
 
-    base_coord = np.column_stack((base_radius*np.cos(circle_points),
-                                  base_radius*np.sin(circle_points),
+    base_coord = np.column_stack((base_radius * np.cos(circle_points),
+                                  base_radius * np.sin(circle_points),
                                   np.full(100, 0)))
 
     platform_radius = robot.platform_radius
 
-    base, = ax.plot([], [], [])
-    platform, = ax.plot([], [], [])
-    upper_arm = sum([ax.plot([], [], [], '-', c=c) for c in colors], [])
-    lower_arm = sum([ax.plot([], [], [], '-', c=c) for c in colors], [])
+    base, = ax.plot([], [], [], '-', color='k')
+    platform, = ax.plot([], [], [], '-', color='k')
+    upper_arm = sum([ax.plot([], [], [], '-', color=c) for c in colors], [])
+    prlgram1 = sum([ax.plot([], [], [], '-', color=c) for c in colors], [])
+    prlgram2 = sum([ax.plot([], [], [], '-', color=c) for c in colors], [])
 
     def init():
 
@@ -151,11 +168,14 @@ def visualize(robot, setp):
             upper_arm[i].set_data([], [])
             upper_arm[i].set_3d_properties([])
 
-        for i in range(len(lower_arm)):
-            lower_arm[i].set_data([], [])
-            lower_arm[i].set_3d_properties([])
+        for i in range(len(prlgram1)):
+            prlgram1[i].set_data([], [])
+            prlgram1[i].set_3d_properties([])
 
-        return [base] + [platform] + upper_arm + lower_arm
+            prlgram2[i].set_data([], [])
+            prlgram2[i].set_3d_properties([])
+
+        return [base] + [platform] + upper_arm + prlgram1 + prlgram2
 
     def animate(i):
 
@@ -164,8 +184,8 @@ def visualize(robot, setp):
         base.set_data(base_coord[:, 0], base_coord[:, 1])
         base.set_3d_properties(base_coord[:, 2])
 
-        platform_coord = np.column_stack((platform_radius*np.cos(circle_points),
-                                          platform_radius*np.sin(circle_points),
+        platform_coord = np.column_stack((platform_radius * np.cos(circle_points),
+                                          platform_radius * np.sin(circle_points),
                                           np.full(100, setp[i, 2])))
 
         platform.set_data(platform_coord[:, 0] + setp[i, 0], platform_coord[:, 1] + setp[i, 1])
@@ -176,29 +196,32 @@ def visualize(robot, setp):
             upper_arm[i].set_data(upper_arm_coord[:, 0], upper_arm_coord[:, 1])
             upper_arm[i].set_3d_properties(upper_arm_coord[:, 2])
 
-        for i in range(len(lower_arm)):
-            lower_arm_coord = robot.lower_arm_coord(i)
-            lower_arm[i].set_data(lower_arm_coord[:, 0], lower_arm_coord[:, 1])
-            lower_arm[i].set_3d_properties(lower_arm_coord[:, 2])
+        for i in range(len(prlgram1)):
+            prlgram_coord = robot.prlgram_arm_coord(i)
 
-        return [base] + [platform] + upper_arm + lower_arm
+            prlgram1[i].set_data(prlgram_coord[0:2, 0], prlgram_coord[0:2, 1])
+            prlgram1[i].set_3d_properties(prlgram_coord[0:2, 2])
+
+            prlgram2[i].set_data(prlgram_coord[2:4, 0], prlgram_coord[2:4, 1])
+            prlgram2[i].set_3d_properties(prlgram_coord[2:4, 2])
+
+        return [base] + [platform] + upper_arm + prlgram1 + prlgram2
 
     if n_frames == 1:
         animate(0)
     else:
-        ani = animation.FuncAnimation(fig, animate, frames=n_frames, blit=True, init_func=init, interval=100, repeat=True)
+        ani = animation.FuncAnimation(fig, animate, frames=n_frames, blit=True, init_func=init, interval=50,
+                                      repeat=True)
 
     plt.show()
 
 
-rbot = Robot(0.164, 0.022, 0.524, 1.244)
+rbot = Robot(0.164, 0.044, 0.524, 1.244, pw=0.131)
 
-steps = np.linspace(0, 2*np.pi, num=50, endpoint=False)
+steps = np.linspace(0, 2 * np.pi, num=50, endpoint=False)
 
-setpoint = np.column_stack((0.2*np.cos(steps),
-                            0.2*np.sin(steps),
-                            0.1*np.sin(2*steps)-1.1))
+setpoint = np.column_stack((0.3 * np.cos(steps),
+                            0.3 * np.sin(steps),
+                            0.1 * np.sin(2 * steps) - 1.1))
 
 visualize(rbot, setpoint)
-
-
