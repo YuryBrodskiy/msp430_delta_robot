@@ -7,7 +7,7 @@ import mathutils as bmath
 class DHParams:
     def __init__(self, d, a,alpha,theta):
         self.d = d
-        self.a = a
+        self.a = a 
         self.alpha = alpha
         self.theta = theta
     def getPose(self):
@@ -22,8 +22,8 @@ class DHParams:
                   [sth*cal, cth*cal, -sal, -sal*d],
                   [sth*sal, cth*sal,  cal,  cal*d],
                   [     0,       0,    0,      1]])
-
-class Joint:
+        
+class Joint:  
     def __init__(self, name, uTwist, dh):
         self.name   = name
         self.parent = []
