@@ -4,8 +4,8 @@ import math
 import time
 # you will need the name of your serial port
 # check in wiring - tools - menu
-#ser = serial.Serial('/dev/tty.uart-28FF467AF9D1272C', 9600)
-ser = serial.Serial('/dev/tty.uart-C2FF518F410F1D47', 9600)
+ser = serial.Serial('/dev/tty.uart-28FF467AF9D1272C', 9600)
+#ser = serial.Serial('/dev/tty.uart-C2FF518F410F1D47', 9600)
 def testRandom():
  
     ser.flushInput() 
@@ -31,10 +31,10 @@ def testServo1(num):
 
 poss = [10,9]
 
-for  pos in xrange(10,50):
+for  pos in xrange(0,180):
     print("Angle is %4.4f" % (pos))
     testServo1(pos*math.pi/180.0)
-    time.sleep(1)
+    time.sleep(0.5)
 
 ser.close()
 

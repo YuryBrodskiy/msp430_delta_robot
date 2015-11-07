@@ -7,8 +7,8 @@
 
 
 const float pi = 3.1416;
-const uint16_t low_val = 450;
-const uint16_t high_val = 2450;
+const uint16_t low_val = 950;//450;
+const uint16_t high_val = 2050;//2450;
 volatile int val = low_val;
 
 typedef float Scalar;
@@ -29,19 +29,20 @@ public:
   ServoMessage(Stream* const input)
   {
     mInput = input;
-    mInput->setTimeout(100);
+    mInput->setTimeout(1000);
     num[0]=0;
     num[1]=0;
     num[2]=0;
   }
-  void read()
+  bool read()
   {
     Scalar val[3];
     bool goodMessage = true;
     if(mInput->find("["))
     {
+        goodMessage = true;
         val[0]=mInput->parseFloat();
-        //goodMessage&=mInput->find(",");
+       // goodMessage&=mInput->find(",");
 
         val[1]=mInput->parseFloat();
         //goodMessage&=mInput->find(",");
@@ -56,6 +57,7 @@ public:
             num[2]=val[2];
           }
     }
+    return goodMessage;
   }
   void println()
   {
@@ -88,18 +90,14 @@ int main(void)
   Serial.println("End of setup");
 
   while(1){
-      if(millis() % 20 == 0 )
-        {
-
-          messageSource.read();
-          servo1.writeAngle(messageSource.num[0]);
-          servo2.writeAngle(messageSource.num[1]);
-          servo3.writeAngle(messageSource.num[2]);
-          messageSource.println();
+     if( messageSource.read())
+       {
+         servo1.writeAngle(messageSource.num[0]);
+         servo2.writeAngle(messageSource.num[1]);
+         servo3.writeAngle(messageSource.num[2]);
+         messageSource.println();
          digitalWrite(RED_LED, !digitalRead(RED_LED));
        }
-
-
 
   }; // can not finish
 }
