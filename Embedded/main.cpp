@@ -86,15 +86,15 @@ int main(void)
   pinMode(GREEN_LED, OUTPUT); // Indicate start of setup
 
   volatile int val_old = 0;
-  _BIS_SR(LPM0_bits);
+ // _BIS_SR(LPM0_bits);
   Serial.println("End of setup");
 
   while(1){
      if( messageSource.read())
        {
-         servo1.writeAngle(messageSource.num[0]);
-         servo2.writeAngle(messageSource.num[1]);
-         servo3.writeAngle(messageSource.num[2]);
+         servo1.writeTime((int)messageSource.num[0]);
+         servo2.writeTime((int)messageSource.num[1]);
+         servo3.writeTime((int)messageSource.num[2]);
          messageSource.println();
          digitalWrite(RED_LED, !digitalRead(RED_LED));
        }

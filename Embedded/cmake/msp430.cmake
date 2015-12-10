@@ -15,8 +15,9 @@ endif()
 SET(CMAKE_SYSTEM_NAME Generic)
 SET(CMAKE_SYSTEM_VERSION 1)
 SET(CMAKE_SYSTEM_PROCESSOR msp430g2553)
-list( APPEND CMAKE_FIND_ROOT_PATH /opt/local/msp430)
-list( APPEND CMAKE_FIND_ROOT_PATH /Applications/Energia.app/Contents/Resources/Java/hardware/tools/msp430/)
+set(ENERGIA_PATH /Applications/Energia.app/Contents/Resources/Java/hardware)
+list(APPEND CMAKE_FIND_ROOT_PATH /opt/local/msp430)
+list(APPEND CMAKE_FIND_ROOT_PATH ${ENERGIA_PATH}/tools/msp430/)
 message(STATUS "CMAKE_FIND_ROOT_PATH '${CMAKE_FIND_ROOT_PATH}'")
 
 find_program(MSP430_CC msp430-gcc)
@@ -24,7 +25,7 @@ find_program(MSP430_CXX msp430-g++)
 find_program(MSP430_OBJCOPY msp430-objcopy)
 find_program(MSP430_SIZE_TOOL msp430-size)
 find_program(MSP430_OBJDUMP msp430-objdump)
-find_program(MSPDEBUG mspdebug)
+find_program(MSP430_DEBUG mspdebug PATH_SUFFIXES ../mspdebug/)
 
 # Compiler & Linker Settings
 include(CMakeForceCompiler)
@@ -60,6 +61,21 @@ set(CMAKE_CXX_LINK_EXECUTABLE
   
 # /Applications/Energia.app/Contents/Resources/Java/hardware/tools/msp430/bin/msp430-objcopy -O ihex -R .eeprom main main.hex
 # /Applications/Energia.app/Contents/Resources/Java/hardware/tools/msp430/mspdebug/mspdebug rf2500 --force-reset prog main.hex
+function(add_mspbundle BUNDLE_TARGET_FILE)
+	set(BUNDLE_TARGET bundle)
+	get_filename_component(FULLPATH_TARGET ${EXECUTABLE_OUTPUT_PATH}/${BUNDLE_TARGET_FILE} ABSOLUTE)
+	add_custom_target(bundle
+		${MSP430_OBJCOPY} -O ihex -R .eeprom ${FULLPATH_TARGET} ${FULLPATH_TARGET}.elf
+	)
+endfunction(add_mspbundle)
+
+function(add_download DOWNLOAD_TARGET_FILE)
+	set(DOWNLOAD_TARGET download)
+	get_filename_component(FULLPATH_TARGET ${EXECUTABLE_OUTPUT_PATH}/${DOWNLOAD_TARGET_FILE} ABSOLUTE)
+	add_custom_target(download
+		${MSP430_DEBUG} rf2500 'erase' 'load ${FULLPATH_TARGET}.elf' 'exit'
+	)
+endfunction(add_download)
   
   
  

@@ -18,13 +18,13 @@ namespace delta
   class PWMServo
   {
   public:
-    PWMServo(uint8_t pin);
+    PWMServo(int pin);
     ~PWMServo();
     void writeTime(int usec); 				//! Write pulse width in microseconds
     int readMicroseconds();                 //! returns current pulse width in microseconds for this servo (was read_us() in first release)
 
   private:
-    uint8_t m_pin;                 //! index into the channel data for this servo
+    int  m_pin;                 //! index into the channel data for this servo
     int  m_set_usec;			   //! current duty cycle
 
   private: // fly weight

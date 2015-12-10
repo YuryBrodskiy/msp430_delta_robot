@@ -39,6 +39,7 @@ namespace delta
     float   m_min_rad;             //! minimum angle
     float   m_max_rad;             //! maximum angle
     float   m_set_rad;			   //! current angle
+    bool    m_clocked;
 
   private: // fly weight
     static const uint32_t m_freq = 50;    //! Normal frequency of the Servos[Hz]

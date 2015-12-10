@@ -1,19 +1,10 @@
 #include <msp430g2553.h>
-//#include "new.h"
+#include "new.h"
 #include "Energia.h"
 #include "HardwareSerial.h"
 #include "PWMServo.h"
 
-const int beginMessage =  -1;
 
-void waitForMessage(Stream* const input)
-{
-  while(input->available()>0 && ((int)input->timedPeek())!=beginMessage)
-  {
-    input->read();
-  }
-
-}
 
 class ServoMessage
 {
@@ -21,7 +12,7 @@ public:
   ServoMessage(Stream* const input)
   {
     mInput = input;
-    mInput->setTimeout(1000);
+    mInput->setTimeout(this->timeOut);
     num[0]=0;
     num[1]=0;
     num[2]=0;
@@ -57,8 +48,19 @@ public:
   }
   int num[3];
 private:
+  void waitForMessage(Stream* const input)
+  {
+	  while(input->available()<=0){};	
+// timedPeek uses -1 as error code and only process chars but returns int (headbang)
+	  while(input->available()>0 && ((int)input->timedPeek())!=beginMessage)
+	  {
+		  input->read();
+	  }
+
+  }
   Stream* mInput;
-  const int timeOut = 1000; //![ms] wait for a next symbol
+  static const int beginMessage =  -1;
+  static const int timeOut = 1000; //![ms] wait for a next symbol
 };
 
 
@@ -72,13 +74,13 @@ int main(void)
   Serial.println("Start of setup");
   
   //! Assign pins
-  delta::PWMServo servo1(P2_2, 0, pi, low_val, high_val);
-  delta::PWMServo servo2(P2_5, 0, pi, low_val, high_val);
-  delta::PWMServo servo3(P2_6, 0, pi, low_val, high_val);
+  delta::PWMServo servo1(P2_2);
+  delta::PWMServo servo2(P2_5);
+  delta::PWMServo servo3(P2_6);
   pinMode(RED_LED, OUTPUT);     // Indicate start of setup
   pinMode(GREEN_LED, OUTPUT);   // Indicate start of setup
   //! Setup power mode  
-  LPM0_EXIT; //Do not care for power consumption servos aremuch more power hungry 
+//?  LPM0_EXIT; //Do not care for power consumption servos aremuch more power hungry 
   
   Serial.println("End of setup");
   //!Start main loop
@@ -94,7 +96,7 @@ int main(void)
     digitalWrite(RED_LED, !digitalRead(RED_LED));
   }
 
-  } // can not finish
+  // can not finish
   digitalWrite(GREEN_LED, !digitalRead(GREEN_LED)); //indicate FAILURE
 }
 
