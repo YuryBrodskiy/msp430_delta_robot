@@ -60,7 +60,5 @@ target_link_libraries(
   msp430_core
 )
 
-#set(FAKE_TARGET fakeTarget)
-#add_custom_target(fakeTarget
-#	${MSPOBJCOPY} -O ihex -R .eeprom main main.elf
-#)
+add_mspbundle(main)
+add_download(main)

@@ -16,7 +16,7 @@ MSPDEBUGFLAGS :=  $(MSPDEBUG_PROTOCOL) 'erase' 'load $(TARGET).elf' 'exit'
 
 all: 
 	mkdir -p build
-	cd build ; cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/msp430.cmake && make
+	cd build ; cmake .. -DCMAKE_TOOLCHAIN_FILE=../../cmake/msp430.cmake && make
 target: all $(TARGET)
 	 $(MSPOBJCOPY) -O ihex -R .eeprom $(TARGET) $(TARGET).elf
 	

@@ -93,3 +93,5 @@ build/CMakeFiles/progress.marks
 build/Makefile
 build/cmake_install.cmake
 hostPy/.pydevproject
+Embedded_minimal/CMakeFiles
+Embedded_minimal/build

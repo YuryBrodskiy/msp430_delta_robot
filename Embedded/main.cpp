@@ -3,6 +3,7 @@
 #include "Energia.h"
 #include "HardwareSerial.h"
 #include "PWMServo.h"
+#include "CharServoMessage.h"
 
 
 
@@ -10,68 +11,6 @@ const float pi = 3.1416;
 const uint16_t low_val = 950;//450;
 const uint16_t high_val = 2050;//2450;
 volatile int val = low_val;
-
-typedef float Scalar;
-const char lastWhitespace = 32;
-
-void skipWhites(Stream* const input)
-{
-  while(input->available()>0 && ((char)input->timedPeek())<=lastWhitespace)
-  {
-    input->read();
-  }
-
-}
-
-class  ServoMessage
-{
-public:
-  ServoMessage(Stream* const input)
-  {
-    mInput = input;
-    mInput->setTimeout(1000);
-    num[0]=0;
-    num[1]=0;
-    num[2]=0;
-  }
-  bool read()
-  {
-    Scalar val[3];
-    bool goodMessage = true;
-    if(mInput->find("["))
-    {
-        goodMessage = true;
-        val[0]=mInput->parseFloat();
-       // goodMessage&=mInput->find(",");
-
-        val[1]=mInput->parseFloat();
-        //goodMessage&=mInput->find(",");
-
-        val[2]=mInput->parseFloat();
-
-        //goodMessage&=mInput->find("]");
-        if(goodMessage)
-          {
-            num[0]=val[0];
-            num[1]=val[1];
-            num[2]=val[2];
-          }
-    }
-    return goodMessage;
-  }
-  void println()
-  {
-    mInput->print("[");mInput->print(num[0]);
-    mInput->print(",");mInput->print(num[1]);
-    mInput->print(",");mInput->print(num[2]);
-    mInput->print("]");mInput->print("\n");
-    mInput->clearWriteError();
-  }
-  Scalar num[3];
-private:
-  Stream* mInput;
-};
-
 
 int main(void)
 {
@@ -81,7 +20,7 @@ int main(void)
   delta::PWMServo servo1(P2_2, 0, pi, low_val, high_val);
   delta::PWMServo servo2(P2_5, 0, pi, low_val, high_val);
   delta::PWMServo servo3(P2_6, 0, pi, low_val, high_val);
-  ServoMessage messageSource(&Serial);
+  CharServoMessage messageSource(&Serial);
   pinMode(RED_LED, OUTPUT); // Indicate start of setup
   pinMode(GREEN_LED, OUTPUT); // Indicate start of setup
 

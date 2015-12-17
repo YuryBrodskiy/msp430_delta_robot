@@ -50,8 +50,10 @@ include_directories(${CMAKE_HOME_DIRECTORY})
 # NRF24NetworkingModule
 #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/msp430lib/include)
 add_executable(main 
-    main.cpp
+   main.cpp
 	PWMServo.cpp
+	CharServoMessage.cpp
+	StringServoMessage.cpp
 )
 
 target_link_libraries(
