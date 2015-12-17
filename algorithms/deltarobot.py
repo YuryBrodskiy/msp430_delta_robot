@@ -1,176 +1,227 @@
-__author__ = 'meinko'
-
-# Very quick n dirty method to see resolution. Using calculation method from
-# https://www.marginallyclever.com/other/samples/fk-ik-test.html
-# TODO: fix, see matlab code.
-
-import math
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import animation
 
-e = 18.0  # end effector radius
-f = 40.0  # base radius
-re = 100.0  # parallelogram length
-rf = 75.0  # upper joint length
-bl = -140.0  # 'base level' (distance to actuator)
-sr = 0.2  # servo resolution in degrees. (Hitec HS-A5076HB)
+sq3 = np.sqrt(3)
 
 
-def cartesian(arrays, out=None):
-    # copied from http://stackoverflow.com/questions/1208118/
-    # using-numpy-to-build-an-array-of-all-combinations-of-two-arrays
-    arrays = [np.asarray(x) for x in arrays]
-    dtype = arrays[0].dtype
-
-    n = np.prod([x.size for x in arrays])
-    if out is None:
-        out = np.zeros([n, len(arrays)], dtype=dtype)
-
-    m = n / arrays[0].size
-    out[:, 0] = np.repeat(arrays[0], m)
-    if arrays[1:]:
-        cartesian(arrays[1:], out=out[0:m, 1:])
-        for j in range(1, arrays[0].size):
-            out[j * m:(j + 1) * m, 1:] = out[0:m, 1:]
-    return out
+def minangle(t):
+    absmin_angle = t[np.argmin(np.abs(t))]
+    return absmin_angle
 
 
-def forward_kinematics(upper_joint_angle):
-    t = (f - e) * (1 / math.sqrt(3)) / 2
-    dtr = math.pi / 180.0
+def solve_ipk(e, f, g):
+    roots = 2 * np.arctan(np.roots([g - e, 2 * f, g + e]))
+    return roots
 
-    # convert to radians
-    upper_joint_angle[0] *= dtr
-    upper_joint_angle[1] *= dtr
-    upper_joint_angle[2] *= dtr
 
-    y1 = -(t + rf * math.cos(upper_joint_angle[0]))
-    z1 = -rf * math.sin(upper_joint_angle[0])
+def inverse(rb, rp, lu, ll, x):
+    a = rb - rp * 2
+    b = rp * 3 / sq3 - rb * sq3 / 2.0
+    c = rp - rb / 2
 
-    y2 = (t + rf * math.cos(upper_joint_angle[1])) * 0.5
-    x2 = y2 * math.sqrt(3)
-    z2 = -rf * math.sin(upper_joint_angle[1])
+    t1 = x[0] ** 2 + x[1] ** 2 + x[2] ** 2
 
-    y3 = (t + rf * math.cos(upper_joint_angle[2])) * 0.5
-    x3 = -y3 * math.sqrt(3)
-    z3 = -rf * math.sin(upper_joint_angle[2])
+    e = 2 * lu * (x[1] + a)
+    f = 2 * x[2] * lu
+    g = t1 + a ** 2 + lu ** 2 + 2 * x[1] * a - ll ** 2
+    theta1 = minangle(solve_ipk(e, f, g))
 
-    dnm = (y2 - y1) * x3 - (y3 - y1) * x2
+    t2 = t1 + b ** 2 + c ** 2 + lu ** 2 - ll ** 2
 
-    w1 = y1 * y1 + z1 * z1
-    w2 = x2 * x2 + y2 * y2 + z2 * z2
-    w3 = x3 * x3 + y3 * y3 + z3 * z3
+    e = -lu * (sq3 * (x[0] + b) + x[1] + c)
+    g = t2 + 2 * (x[0] * b + x[1] * c)
+    theta2 = minangle(solve_ipk(e, f, g))
 
-    # x = (a1*z + b1)/dnm
-    a1 = (z2 - z1) * (y3 - y1) - (z3 - z1) * (y2 - y1)
-    b1 = -((w2 - w1) * (y3 - y1) - (w3 - w1) * (y2 - y1)) / 2.0
+    e = lu * (sq3 * (x[0] - b) - x[1] - c)
+    g = t2 + 2 * (-x[0] * b + x[1] * c)
+    theta3 = minangle(solve_ipk(e, f, g))
 
-    # y = (a2*z + b2)/dnm;
-    a2 = -(z2 - z1) * x3 + (z3 - z1) * x2
-    b2 = ((w2 - w1) * x3 - (w3 - w1) * x2) / 2.0
+    return np.array([-theta1, -theta2, -theta3])
 
-    # a*z^2 + b*z + c = 0
-    a = a1 * a1 + a2 * a2 + dnm * dnm
-    b = 2 * (a1 * b1 + a2 * (b2 - y1 * dnm) - z1 * dnm * dnm)
-    c = (b2 - y1 * dnm) * (b2 - y1 * dnm) + b1 * b1 + dnm * dnm * (z1 * z1 - re * re)
 
-    # discriminant
-    d = b * b - 4.0 * a * c
+def p2c(th, r):
+    return np.array([r * np.cos(th), r * np.sin(th)])
 
-    if d < 0:
-        print("impossible config")
-        return np.array([np.nan, np.nan, np.nan])
+
+class Robot:
+    # todo: mathematical configuration check
+    # todo: hinge check if angles are physically allowed
+    def __init__(self, rb, rp, lu, ll, pw=None):
+        self.base_radius = rb
+        self.platform_radius = rp
+        self.upper_arm_length = lu
+        self.lower_arm_length = ll
+        self.pgram_width = pw
+
+        self._xyz = np.array([0, 0, -0.9])
+        self._theta = inverse(rb, rp, lu, ll, self.xyz)  # todo, forward kinematics first
+
+        self.arm_attach = np.array([-1 / 2, 1 / 6, 5 / 6]) * np.pi
+
+    @property
+    def xyz(self):
+        return self._xyz
+
+    @xyz.setter
+    def xyz(self, xyz):
+        xyz = np.asarray(xyz, dtype=np.float32)
+        self._theta = inverse(self.base_radius,
+                              self.platform_radius,
+                              self.upper_arm_length,
+                              self.lower_arm_length, xyz)
+        self._xyz = xyz
+
+    @property
+    def theta(self):
+        return self._theta
+
+    @theta.setter
+    def theta(self, theta):
+        theta = np.asarray(theta, dtype=np.float32)
+        # todo: check config is possible
+        # todo: forward kinematics
+        self._theta = theta
+
+    def act_coord(self, n):
+        return np.append(p2c(self.arm_attach[n], self.base_radius), [0])
+
+    def shoulder_hinge_coord(self, n):
+        ludx, ludy = p2c(self._theta[n], self.upper_arm_length)
+        return np.append(p2c(self.arm_attach[n], self.base_radius + ludx), [ludy])
+
+    def platform_hinge_coord(self, n):
+        return np.append(p2c(self.arm_attach[n], self.platform_radius) + self._xyz[0:2], self._xyz[2])
+
+    def upper_arm_coord(self, n):
+        base_coord = self.act_coord(n)
+        hinge_coord = self.shoulder_hinge_coord(n)
+
+        return np.vstack((base_coord, hinge_coord))
+
+    def lower_arm_coord(self, n):
+        shoulder_hinge_coord = self.shoulder_hinge_coord(n)
+        platform_hinge_coord = self.platform_hinge_coord(n)
+
+        return np.vstack((shoulder_hinge_coord, platform_hinge_coord))
+
+    def prlgram_arm_coord(self, n):
+        v1 = p2c(self.arm_attach[n]+np.pi/2, self.pgram_width/2)
+        v2 = p2c(self.arm_attach[n]-np.pi/2, self.pgram_width/2)
+
+        lower_arm_coord = self.lower_arm_coord(n)
+
+        prlgram1 = np.copy(lower_arm_coord)
+        prlgram2 = np.copy(lower_arm_coord)
+
+        prlgram1[:, 0:2] += np.vstack((v1, v1))
+        prlgram2[:, 0:2] += np.vstack((v2, v2))
+
+        return np.vstack((prlgram1, prlgram2))
+
+
+def visualize(robot, setp):
+    if setp.ndim == 1:
+        n_frames = 1
+        setp = np.array([setp])
     else:
-        z0 = -0.5 * (b + math.sqrt(d)) / a
-        x0 = (a1 * z0 + b1) / dnm
-        y0 = (a2 * z0 + b2) / dnm
+        n_frames = setp.shape[0]
 
-        # print("x: {0:6.2f}  y: {1:6.2f}  z: {2:6.2f}".format(x0, y0, z0))
-        return np.array([x0, y0, z0])
+    fig = plt.figure("config")
 
+    # color:   blue       green      fuchsia
+    colors = ('b', 'g', 'r')
 
-def calc_angle_yz(x0, y0, z0):
-    y1 = -0.5 * 0.57735 * f  # f/2 * tg 30
-    y0 -= 0.5 * 0.57735 * e  # shift center to edge
-    # z = a + b*y
-    a = (x0 * x0 + y0 * y0 + z0 * z0 + rf * rf - re * re - y1 * y1) / (2.0 * z0)
-    b = (y1 - y0) / z0
-    d = -(a + b * y1) * (a + b * y1) + rf * (b * b * rf + rf)
+    ax = fig.add_subplot(111, projection='3d')
+    ax.auto_scale_xyz([-0.75, 0.75], [-0.75, 0.75], [-1.5, 0])
+    ax.set_aspect("equal")
 
-    if d < 0:
-        return False
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+
+    circle_points = np.linspace(0, 2 * np.pi, num=100, endpoint=True)
+    base_radius = robot.base_radius
+
+    base_coord = np.column_stack((base_radius * np.cos(circle_points),
+                                  base_radius * np.sin(circle_points),
+                                  np.full(100, 0)))
+
+    platform_radius = robot.platform_radius
+
+    base, = ax.plot([], [], [], '-', color='k')
+    platform, = ax.plot([], [], [], '-', color='k')
+    upper_arm = sum([ax.plot([], [], [], '-', color=c) for c in colors], [])
+    prlgram1 = sum([ax.plot([], [], [], '-', color=c) for c in colors], [])
+    prlgram2 = sum([ax.plot([], [], [], '-', color=c) for c in colors], [])
+
+    def init():
+
+        base.set_data([], [])
+        base.set_3d_properties([])
+
+        platform.set_data([], [])
+        platform.set_3d_properties([])
+
+        for i in range(len(upper_arm)):
+            upper_arm[i].set_data([], [])
+            upper_arm[i].set_3d_properties([])
+
+        for i in range(len(prlgram1)):
+            prlgram1[i].set_data([], [])
+            prlgram1[i].set_3d_properties([])
+
+            prlgram2[i].set_data([], [])
+            prlgram2[i].set_3d_properties([])
+
+        return [base] + [platform] + upper_arm + prlgram1 + prlgram2
+
+    def animate(i):
+
+        robot.xyz = setp[i, ]
+
+        base.set_data(base_coord[:, 0], base_coord[:, 1])
+        base.set_3d_properties(base_coord[:, 2])
+
+        platform_coord = np.column_stack((platform_radius * np.cos(circle_points),
+                                          platform_radius * np.sin(circle_points),
+                                          np.full(100, setp[i, 2])))
+
+        platform.set_data(platform_coord[:, 0] + setp[i, 0], platform_coord[:, 1] + setp[i, 1])
+        platform.set_3d_properties(platform_coord[:, 2])
+
+        for i in range(len(upper_arm)):
+            upper_arm_coord = robot.upper_arm_coord(i)
+            upper_arm[i].set_data(upper_arm_coord[:, 0], upper_arm_coord[:, 1])
+            upper_arm[i].set_3d_properties(upper_arm_coord[:, 2])
+
+        for i in range(len(prlgram1)):
+            prlgram_coord = robot.prlgram_arm_coord(i)
+
+            prlgram1[i].set_data(prlgram_coord[0:2, 0], prlgram_coord[0:2, 1])
+            prlgram1[i].set_3d_properties(prlgram_coord[0:2, 2])
+
+            prlgram2[i].set_data(prlgram_coord[2:4, 0], prlgram_coord[2:4, 1])
+            prlgram2[i].set_3d_properties(prlgram_coord[2:4, 2])
+
+        return [base] + [platform] + upper_arm + prlgram1 + prlgram2
+
+    if n_frames == 1:
+        animate(0)
     else:
-        yj = (y1 - a * b - math.sqrt(d)) / (b * b + 1)
-        zj = a + b * yj
-        return 180.0 * math.atan(-zj / (y1 - yj)) / math.pi + (180.0 if yj > y1 else 0.0)
+        ani = animation.FuncAnimation(fig, animate, frames=n_frames, blit=True, init_func=init, interval=50,
+                                      repeat=True)
+
+    plt.show()
 
 
-def inverse_kinematics(effector_pos):
-    theta1 = calc_angle_yz(effector_pos[0], effector_pos[1], effector_pos[2])
+rbot = Robot(0.164, 0.044, 0.524, 1.244, pw=0.131)
 
-    theta2 = calc_angle_yz(effector_pos[0] * -0.5 + effector_pos[1] * (math.sqrt(3) / 2.0),
-                           effector_pos[1] * -0.5 - effector_pos[0] * (math.sqrt(3) / 2.0), effector_pos[2])
+steps = np.linspace(0, 2 * np.pi, num=50, endpoint=False)
 
-    theta3 = calc_angle_yz(effector_pos[0] * -0.5 - effector_pos[1] * (math.sqrt(3) / 2.0),
-                           effector_pos[1] * -0.5 + effector_pos[0] * (math.sqrt(3) / 2.0), effector_pos[2])
+setpoint = np.column_stack((0.3 * np.cos(steps),
+                            0.3 * np.sin(steps),
+                            0.1 * np.sin(2 * steps) - 1.1))
 
-    if theta1 and theta2 and theta3:
-        # print("theta 1: {0:5.2f}   theta 2: {1:5.2f}   theta 3: {2:5.2f}".format(theta1, theta2, theta3))
-        return np.array([theta1, theta2, theta3])
-    else:
-        print("impossible config")
-        return np.array([np.nan, np.nan, np.nan])
-
-
-# spatial resolution
-
-def resolution(effector_pos):
-    theta = inverse_kinematics(effector_pos)
-
-    loc = cartesian(([1., 0., -1.], [1., 0., -1.], [1., 0., -1.]))
-
-    sloc = np.sum(loc, axis=1)
-
-    loc = loc[np.abs(sloc) < 1, :]
-
-    loc *= sr
-
-    dpos = np.apply_along_axis(lambda da: forward_kinematics(theta + da), axis=1, arr=loc)
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-
-    ax.scatter(dpos[:, 0], dpos[:, 1], dpos[:, 2], c='r', marker='o')
-    ax.scatter(effector_pos[0], effector_pos[1], effector_pos[2], s=60, c='g', marker='o')
-
-    # Create cubic bounding box to simulate equal aspect ratio, http://stackoverflow.com/questions/
-    # 13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
-    max_range = np.array([dpos[:, 0].max() - dpos[:, 0].min(), dpos[:, 1].max() - dpos[:, 1].min(),
-                          dpos[:, 2].max() - dpos[:, 2].min()]).max()
-    Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (dpos[:, 0].max() + dpos[:, 0].min())
-    Yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() + 0.5 * (dpos[:, 1].max() + dpos[:, 1].min())
-    Zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() + 0.5 * (dpos[:, 2].max() + dpos[:, 2].min())
-    # Comment or uncomment following both lines to test the fake bounding box:
-    for xb, yb, zb in zip(Xb, Yb, Zb):
-        ax.plot([xb], [yb], [zb], 'w')
-
-    ax.set_xlabel('X mm')
-    ax.set_ylabel('Y mm')
-    ax.set_zlabel('Z mm')
-
-    ax.set_aspect('equal')
-
-    plt.draw()
-
-    # return np.apply_along_axis(lambda dp: np.linalg.norm(dp - effector_pos), axis=1, arr=dpos)
-    return dpos[:, 2]
-
-
-res = resolution(np.array([0, 0, -140])) + 140
-print(res)
-
-res = resolution(np.array([50, 50, -140])) + 140
-print(res)
-
-plt.show()
+visualize(rbot, setpoint)
