@@ -34,7 +34,7 @@ int main(void)
          servo1.writeTime((int)messageSource.num[0]);
          servo2.writeTime((int)messageSource.num[1]);
          servo3.writeTime((int)messageSource.num[2]);
-         messageSource.println();
+         //messageSource.println();
          digitalWrite(RED_LED, !digitalRead(RED_LED));
        }
 
