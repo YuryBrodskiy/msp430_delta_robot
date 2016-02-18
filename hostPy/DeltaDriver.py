@@ -8,11 +8,14 @@ import re
 # you will need the name of your serial port
 # check in wiring - tools - menu
 class DeltaDriver:
-    def __init__(self, portUrl = ''):
+    def __init__(self, portUrl, minAngle,maxAngle, minTime,maxTime):
         if portUrl == '':
             portUrl=getUARTUrl()
         self.port = serial.Serial(portUrl, 9600)
         self.msCorrection = [0,0,0]
+        self.servo = []
+        for i in range(3):
+            self.servo.append(Servo(minAngle[i],maxAngle[i], minTime[i],maxTime[i]))
     def calibrate (self,val):
         self.msCorrection = val
     def setTimes(self,val):
@@ -24,13 +27,21 @@ class DeltaDriver:
         message = makeMessage([x1,x2,x3])
         self.port.write(message)
     def setAngles(self,val):
-        self.setTimes(val)
+        self.setTimes([self.servo[i].getTime(val[i]) for i in range(3)])
     def __del__(self):
         self.port.close()
     def __enter__(self):
         return self
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+class Servo:
+    def __init__(self, minAngle,maxAngle, minTime,maxTime):
+        self.minAngle = minAngle;
+        self.maxAngle = maxAngle;
+        self.minTime = minTime;
+        self.maxTime = maxTime;
+    def getTime(self,angle):
+        return  (self.maxTime-self.minTime)/(self.maxAngle-self.minAngle)*(angle-self.minAngle) +  self.minTime;
 def makeMessageDigit(inputVal):
     lowBitMask = int(255)
     lowBit = (inputVal & lowBitMask)
@@ -47,7 +58,7 @@ def decodeMessage(message):
 def getUARTUrl():
     allDevicesUrls =  listdir('/dev/')
     portUrls = [f for f in allDevicesUrls if re.match('tty\.uart.*', f)]
-    return join('/dev/',portUrls[1])# will throw up if nothing found/ nice to check the system type
+    return join('/dev/',portUrls[0])# will throw up if nothing found/ nice to check the system type
 
 def test_Messages():
     print makeMessageDigit(0)
@@ -62,14 +73,14 @@ def test_Messages():
     print makeMessage([2000,2000,200])
     print decodeMessage(makeMessage([2000,2000,200]))
 def test_com():
-    ser = serial.Serial('/dev/tty.uart-28FF467AF9D1272C', 9600)
+    ser = serial.Serial(getUARTUrl(), 9600)
     ser.flushInput() 
     ser.flushOutput()  
 
     ser.write(makeMessage([ 990 ,990 ,990  ]))
     ser.close()
 def main():
-    with DeltaDriver('/dev/tty.uart-C2FF518F410F1D47') as delta:
+    with DeltaDriver('',[0,0,0],[90,90,90],[900,900,900],[1800,1800,1800]) as delta:
         delta.setAngles([990, 990, 990])
         time.sleep(1.0)
         delta.setAngles([1500, 1500, 1500])
