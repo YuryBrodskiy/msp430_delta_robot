@@ -41,7 +41,7 @@ class Servo:
         self.minTime = minTime;
         self.maxTime = maxTime;
     def getTime(self,angle):
-        return  (self.maxTime-self.minTime)/(self.maxAngle-self.minAngle)*(angle-self.minAngle) +  self.minTime;
+        return  int((self.maxTime-self.minTime)/(self.maxAngle-self.minAngle)*(angle-self.minAngle) +  self.minTime);
 def makeMessageDigit(inputVal):
     lowBitMask = int(255)
     lowBit = (inputVal & lowBitMask)
@@ -94,7 +94,7 @@ def main():
                 print(message)
                 print(decodeMessage(message))
                 delta.setAngles(message)
-                time.sleep(0.1)
+                time.sleep(1)
 if __name__ == "__main__":
     test_Messages()
     test_com()
