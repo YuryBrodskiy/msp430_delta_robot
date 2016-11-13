@@ -1,188 +1,168 @@
-__author__ = 'meinko'
-
-# Very quick n dirty method to see resolution. Using calculation method from
-# https://www.marginallyclever.com/other/samples/fk-ik-test.html
-
-import math
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-
-e = 15.0  # end effector radius
-f = 30.0  # base radius
-re = 120.0  # parallelogram length
-rf = 40.0  # upper joint length
-bl = -100.0  # 'base level' (distance to actuator)
-sr = 0.5  # servo resolution in degrees. (Hitec HS-A5076HB)
 
 
-def cartesian(arrays, out=None):
-    # copied from http://stackoverflow.com/questions/1208118/
-    # using-numpy-to-build-an-array-of-all-combinations-of-two-arrays
-    arrays = [np.asarray(x) for x in arrays]
-    dtype = arrays[0].dtype
+def inverse(E, F, RE, RF, X0, Y0, Z0):
+    R3 = np.sqrt(3)
 
-    n = np.prod([x.size for x in arrays])
-    if out is None:
-        out = np.zeros([n, len(arrays)], dtype=dtype)
+    E2 = E/2.0
+    F2 = F/2.0
+    E4 = E/4.0
+    F4 = F/4.0
 
-    m = n / arrays[0].size
-    out[:, 0] = np.repeat(arrays[0], m)
-    if arrays[1:]:
-        cartesian(arrays[1:], out=out[0:m, 1:])
-        for j in range(1, arrays[0].size):
-            out[j * m:(j + 1) * m, 1:] = out[0:m, 1:]
-    return out
+    C1X = X0
+    C1Y = Y0-E2/R3
+    C1Z = Z0
 
+    C2X = X0+E4
+    C2Y = Y0+E4/R3
+    C2Z = Z0
 
-def forward_kinematics(upper_joint_angle):
-    t = (f - e) * (1 / math.sqrt(3)) / 2
-    dtr = math.pi / 180.0
+    RF2 = RF**2
 
-    # convert to radians
-    upper_joint_angle[0] *= dtr
-    upper_joint_angle[1] *= dtr
-    upper_joint_angle[2] *= dtr
+    C3X = X0-E4
+    C3Y = C2Y
+    C3Z = Z0
 
-    y1 = -(t + rf * math.cos(upper_joint_angle[0]))
-    z1 = -rf * math.sin(upper_joint_angle[0])
+    D1Y = -F2/R3
+    D2X = F4
+    D2Y = F4/R3
+    D3X = -F4
+    D3Y = D2Y
+    EF = RE**2-RF2
 
-    y2 = (t + rf * math.cos(upper_joint_angle[1])) * 0.5
-    x2 = y2 * math.sqrt(3)
-    z2 = -rf * math.sin(upper_joint_angle[1])
+    X1 = C1X
+    Y1 = C1Y-D1Y
+    Z1 = C1Z
+    W1 = (EF - C1X**2 + D1Y**2 - C1Y**2 - C1Z**2)/2.0
 
-    y3 = (t + rf * math.cos(upper_joint_angle[2])) * 0.5
-    x3 = -y3 * math.sqrt(3)
-    z3 = -rf * math.sin(upper_joint_angle[2])
+    X2 = C2X-D2X
+    Y2 = C2Y-D2Y
+    Z2 = C2Z
+    W2 = (EF + D2X**2 - C2X**2 + D2Y**2 - C2Y**2 - C2Z**2)/2.0
 
-    dnm = (y2 - y1) * x3 - (y3 - y1) * x2
+    X3 = C3X - D3X
+    Y3 = C3Y - D3Y
+    Z3 = C3Z
+    W3 = (EF + D3X**2 - C3X**2 + D3Y**2 - C3Y**2 - C3Z**2)/2.0
 
-    w1 = y1 * y1 + z1 * z1
-    w2 = x2 * x2 + y2 * y2 + z2 * z2
-    w3 = x3 * x3 + y3 * y3 + z3 * z3
+    P02 = Z1
+    P03 = -Y1
+    P23 = W1
 
-    # x = (a1*z + b1)/dnm
-    a1 = (z2 - z1) * (y3 - y1) - (z3 - z1) * (y2 - y1)
-    b1 = -((w2 - w1) * (y3 - y1) - (w3 - w1) * (y2 - y1)) / 2.0
+    Q01 = -R3*Z2
+    Q02 = -Z2
+    Q03 = Y2 + R3*X2
+    Q23 = -W2
+    Q31 = R3*W2
 
-    # y = (a2*z + b2)/dnm;
-    a2 = -(z2 - z1) * x3 + (z3 - z1) * x2
-    b2 = ((w2 - w1) * x3 - (w3 - w1) * x2) / 2.0
+    R01 = R3*Z3
+    R02 = -Z3
+    R03 = Y3-R3*X3
+    R23 = -W3
+    R31 = -R3*W3
 
-    # a*z^2 + b*z + c = 0
-    a = a1 * a1 + a2 * a2 + dnm * dnm
-    b = 2 * (a1 * b1 + a2 * (b2 - y1 * dnm) - z1 * dnm * dnm)
-    c = (b2 - y1 * dnm) * (b2 - y1 * dnm) + b1 * b1 + dnm * dnm * (z1 * z1 - re * re)
+    RD = 180.0/np.pi
 
-    # discriminant
-    d = b * b - 4.0 * a * c
+    T = P02/P03
+    U = P23/P03
 
-    if d < 0:
-        print("impossible config")
-        return np.array([np.nan, np.nan, np.nan])
+    A = T*T+1
+    B = T*(D1Y-U)
+    C = U*(2*D1Y-U) - D1Y**2 + RF2
+    D = B*B+A*C
+
+    if D < 0:
+        print('no solution')
+        return
     else:
-        z0 = -0.5 * (b + math.sqrt(d)) / a
-        x0 = (a1 * z0 + b1) / dnm
-        y0 = (a2 * z0 + b2) / dnm
+        D = np.sqrt(D)
+        V1 = np.array(((B - D)/A, (B + D)/A))
+        S = V1/RF
+        theta1 = RD*np.arcsin(S)
 
-        # print("x: {0:6.2f}  y: {1:6.2f}  z: {2:6.2f}".format(x0, y0, z0))
-        return np.array([x0, y0, z0])
+    T = Q02/Q03
+    U = Q01/Q03
+    V = Q31/Q03
+    W = Q23/Q03
 
+    A = T*T + U*U + 1
+    B = U*(D2X + V) + T*(D2Y - W)
+    C = RF2 - D2X*(D2X + 2*V) - D2Y*(D2Y - 2*W) - V*V - W*W
+    D = B*B + A*C
 
-def calc_angle_yz(x0, y0, z0):
-    y1 = -0.5 * 0.57735 * f  # f/2 * tg 30
-    y0 -= 0.5 * 0.57735 * e  # shift center to edge
-    # z = a + b*y
-    a = (x0 * x0 + y0 * y0 + z0 * z0 + rf * rf - re * re - y1 * y1) / (2.0 * z0)
-    b = (y1 - y0) / z0
-    d = -(a + b * y1) * (a + b * y1) + rf * (b * b * rf + rf)
-
-    if d < 0:
-        return False
+    if D < 0:
+        print('no solution')
+        return
     else:
-        yj = (y1 - a * b - math.sqrt(d)) / (b * b + 1)
-        zj = a + b * yj
-        return 180.0 * math.atan(-zj / (y1 - yj)) / math.pi + (180.0 if yj > y1 else 0.0)
+        D = np.sqrt(D)
+        V2 = np.array(((B - D)/A, (B + D)/A))
+        S = V2/RF
+        theta2 = RD*np.arcsin(S)
 
+    T = R02/R03
+    U = R01/R03
+    V = R31/R03
+    W = R23/R03
 
-def inverse_kinematics(effector_pos):
-    theta1 = calc_angle_yz(effector_pos[0], effector_pos[1], effector_pos[2])
+    A = T*T + U*U + 1
+    B = U*(D3X + V) + T*(D3Y - W)
+    C = RF2 - D3X*(D3X + 2*V) - D3Y * (D3Y - 2*W) - V*V - W*W
+    D = B*B + A*C
 
-    theta2 = calc_angle_yz(effector_pos[0] * -0.5 + effector_pos[1] * (math.sqrt(3) / 2.0),
-                           effector_pos[1] * -0.5 - effector_pos[0] * (math.sqrt(3) / 2.0), effector_pos[2])
-
-    theta3 = calc_angle_yz(effector_pos[0] * -0.5 - effector_pos[1] * (math.sqrt(3) / 2.0),
-                           effector_pos[1] * -0.5 + effector_pos[0] * (math.sqrt(3) / 2.0), effector_pos[2])
-
-    if theta1 and theta2 and theta3:
-        # print("theta 1: {0:5.2f}   theta 2: {1:5.2f}   theta 3: {2:5.2f}".format(theta1, theta2, theta3))
-        return np.array([theta1, theta2, theta3])
+    if D < 0:
+        print('no solution')
+        return
     else:
-        print("impossible config")
-        return np.array([np.nan, np.nan, np.nan])
+        D = np.sqrt(D)
+        V3 = np.array(((B - D)/A, (B + D)/A))
+        S = V3/RF
+        theta3 = RD*np.arcsin(S)
+
+    return np.array((theta1, theta2, theta3))
+
+E = 8
+F = 16
+RE = 10.3094
+RF = 8
+
+X0 = 2
+Y0 = 3
+Z0 = -8.7488
+
+print(inverse(E, F, RE, RF, X0, Y0, Z0))
 
 
-# spatial resolution
+E = 8
+F = 16
+RE = 10.3094
+RF = 8
 
-def resolution(effector_pos):
-    theta = inverse_kinematics(effector_pos)
+X0 = 3
+Y0 = 2
+Z0 = -8.7488
 
-    loc = cartesian(([1., 0., -1.], [1., 0., -1.], [1., 0., -1.]))
-
-    sloc = np.sum(loc, axis=1)
-
-    loc = loc[np.abs(sloc) < 1, :]
-
-    loc *= sr
-
-    dpos = np.apply_along_axis(lambda da: forward_kinematics(theta + da), axis=1, arr=loc)
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-
-    ax.scatter(dpos[:, 0], dpos[:, 1], dpos[:, 2], c='r', marker='o')
-    ax.scatter(effector_pos[0], effector_pos[1], effector_pos[2], s=60, c='g', marker='o')
-
-    # Create cubic bounding box to simulate equal aspect ratio, http://stackoverflow.com/questions/
-    # 13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to
-    max_range = np.array([dpos[:, 0].max() - dpos[:, 0].min(), dpos[:, 1].max() - dpos[:, 1].min(),
-                          dpos[:, 2].max() - dpos[:, 2].min()]).max()
-    Xb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][0].flatten() + 0.5 * (dpos[:, 0].max() + dpos[:, 0].min())
-    Yb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][1].flatten() + 0.5 * (dpos[:, 1].max() + dpos[:, 1].min())
-    Zb = 0.5 * max_range * np.mgrid[-1:2:2, -1:2:2, -1:2:2][2].flatten() + 0.5 * (dpos[:, 2].max() + dpos[:, 2].min())
-    # Comment or uncomment following both lines to test the fake bounding box:
-    for xb, yb, zb in zip(Xb, Yb, Zb):
-        ax.plot([xb], [yb], [zb], 'w')
-
-    ax.set_xlabel('X mm')
-    ax.set_ylabel('Y mm')
-    ax.set_zlabel('Z mm')
-
-    ax.set_aspect('equal')
-
-    plt.draw()
-
-    # return np.apply_along_axis(lambda dp: np.linalg.norm(dp - effector_pos), axis=1, arr=dpos)
-    return dpos[:, 2]
-
-s = 30
-b = -90
+print(inverse(E, F, RE, RF, X0, Y0, Z0))
 
 
-res = resolution(np.array([0, 0, b])) - b
-print(res)
+E = 0.076*2
+F = 0.567
+RE = 1.244
+RF = 0.524
 
-res = resolution(np.array([s, s, b])) - b
-print(res)
+X0 = 0.0
+Y0 = 0.0
+Z0 = -0.9
 
-res = resolution(np.array([s, -s, b])) - b
-print(res)
-
-res = resolution(np.array([-s, -s, b])) - b
-print(res)
-
-res = resolution(np.array([-s, s, b])) - b
-print(res)
+print(inverse(E, F, RE, RF, X0, Y0, Z0))
 
 
-plt.show()
+E = 0.076*2
+F = 0.567
+RE = 1.244
+RF = 0.524
+
+X0 = 0.3
+Y0 = 0.5
+Z0 = -1.1
+
+print(inverse(E, F, RE, RF, X0, Y0, Z0))
