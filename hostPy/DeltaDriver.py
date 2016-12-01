@@ -98,4 +98,4 @@ def main():
 if __name__ == "__main__":
     test_Messages()
     test_com()
-    main()
+   # main()
